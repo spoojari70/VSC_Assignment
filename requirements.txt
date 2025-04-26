@@ -1,0 +1,22 @@
+# Core packages
+plotly
+pandas
+numpy
+
+# For notebooks and interactive widgets
+jupyterlab
+notebook
+ipywidgets
+nbformat
+nbconvert
+
+# For exporting Plotly plots as images
+kaleido
+
+# Optional: for maps and geospatial visuals
+geopandas
+shapely
+
+# Visualization and regression plotting (optional, but useful)
+matplotlib
+seaborn

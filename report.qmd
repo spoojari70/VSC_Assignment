@@ -1,0 +1,75 @@
+---
+title: "UNICEF Global Report: Youth Health & Nutrition"
+format:
+  html:
+    embed-resources: true
+    code-fold: true
+    theme: flatly
+---
+
+# 🌍 Introduction
+
+**UNICEF** is focused on improving global health outcomes for youth. This report presents key indicators like **Vitamin A coverage** and **mortality rates for adolescents (15–19)**, along with **GDP per capita** data to explore global health inequalities.
+
+---
+
+# 📈 Visualisation 1: World Map
+
+```{python}
+import pandas as pd 
+import geopandas as gpd
+from plotnine import *
+from shapely.geometry import Polygon, MultiPolygon
+
+# Load the UNICEF data
+data = pd.read_csv('data/unicef_merged.csv')
+
+# Load the world dataset from the shapefile
+file_path = r"C:\Users\Acer\OneDrive\Desktop\tableau_assignment\Quarto Report\VSC_Assignment\ne_110m_admin_0_countries.shp"
+world = gpd.read_file(file_path)
+
+# Merge data on ISO country codes (use 'SOV_A3' for the ISO 3-letter codes)
+merged_data = world.merge(
+    data.groupby('country_code').mean(numeric_only=True).reset_index(),
+    left_on='SOV_A3', right_on='country_code', how='left'
+)
+
+# Drop rows with no 'coverage' data
+merged_data = merged_data.dropna(subset=['coverage'])
+
+# Explode MultiPolygons into Polygons (if any)
+merged_data = merged_data.explode(index_parts=False)
+
+# Convert GeoDataFrame to plottable DataFrame
+plot_rows = []
+for _, row in merged_data.iterrows():
+    geom = row.geometry
+    if isinstance(geom, Polygon):
+        x, y = geom.exterior.xy
+        for xi, yi in zip(x, y):
+            plot_rows.append({'long': xi, 'lat': yi, 'coverage': row['coverage'], 'group': row['SOV_A3']})
+    elif isinstance(geom, MultiPolygon):
+        for part in geom:
+            x, y = part.exterior.xy
+            for xi, yi in zip(x, y):
+                plot_rows.append({'long': xi, 'lat': yi, 'coverage': row['coverage'], 'group': row['SOV_A3']})
+
+# Create a DataFrame from the plot rows
+plot_df = pd.DataFrame(plot_rows)
+
+# Define the plot
+coverage_plot = (
+    ggplot(plot_df)
+    + geom_polygon(aes(x='long', y='lat', group='group', fill='coverage'), color='white')
+    + coord_fixed()
+    + theme_minimal()
+    + labs(title='Vitamin A Supplementation Coverage', fill='Coverage (%)')
+)
+
+# Print the plot to render in Quarto
+print(coverage_plot)
+
+# Save the plot to a file
+#coverage_plot.save('vitamin_coverage_map.png', dpi=300)
+
+

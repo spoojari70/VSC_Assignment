@@ -1,0 +1,70 @@
+---
+title: "UNICEF Global Report: Youth Health & Nutrition"
+format:
+  html:
+    embed-resources: true
+    code-fold: true
+    theme: flatly
+---
+
+# 🌍 Introduction
+
+**UNICEF** is focused on improving global health outcomes for youth. This report presents key indicators like **Vitamin A coverage** and **mortality rates for adolescents (15–19)**, along with **GDP per capita** data to explore global health inequalities.
+
+---
+
+# 📈 Visualisation 1: World Map
+
+```{python}
+import pandas as pd
+import geopandas as gpd
+from plotnine import *
+from shapely.geometry import Polygon, MultiPolygon
+
+# Load data
+data = pd.read_csv('data/unicef_merged.csv')
+
+# Load the correct world dataset from GeoPandas (naturalearth_lowres)
+world = gpd.read_file(gpd.datasets.get_path('naturalearth_lowres'))
+
+# Check the columns to ensure 'iso_a3' is available
+print(world.columns)
+
+# Merge data on ISO country codes
+merged_data = world.merge(
+    data.groupby('country_code').mean(numeric_only=True).reset_index(),
+    left_on='iso_a3', right_on='country_code', how='left'
+)
+
+# Drop rows with no 'coverage' data
+merged_data = merged_data.dropna(subset=['coverage'])
+
+# Explode MultiPolygons into Polygons (if any)
+merged_data = merged_data.explode(index_parts=False)
+
+# Convert GeoDataFrame to plottable DataFrame
+plot_rows = []
+for _, row in merged_data.iterrows():
+    geom = row.geometry
+    if isinstance(geom, Polygon):
+        x, y = geom.exterior.xy
+        for xi, yi in zip(x, y):
+            plot_rows.append({'long': xi, 'lat': yi, 'coverage': row['coverage'], 'group': row['iso_a3']})
+    elif isinstance(geom, MultiPolygon):
+        for part in geom:
+            x, y = part.exterior.xy
+            for xi, yi in zip(x, y):
+                plot_rows.append({'long': xi, 'lat': yi, 'coverage': row['coverage'], 'group': row['iso_a3']})
+
+# Create a DataFrame from the plot rows
+plot_df = pd.DataFrame(plot_rows)
+
+# Plot with Plotnine
+(
+    ggplot(plot_df)
+    + geom_polygon(aes(x='long', y='lat', group='group', fill='coverage'), color='white')
+    + coord_fixed()
+    + theme_minimal()
+    + labs(title='Vitamin A Supplementation Coverage', fill='Coverage (%)')
+)
+
