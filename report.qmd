@@ -1,75 +1,407 @@
 ---
-title: "UNICEF Global Report: Youth Health & Nutrition"
 format:
   html:
     embed-resources: true
     code-fold: true
-    theme: flatly
----
+--- 
 
 # 🌍 Introduction
 
 **UNICEF** is focused on improving global health outcomes for youth. This report presents key indicators like **Vitamin A coverage** and **mortality rates for adolescents (15–19)**, along with **GDP per capita** data to explore global health inequalities.
 
+## 🗺️ Vitamin A Supplementation Coverage – Interactive World Map
+
+This interactive map displays the global coverage of **Vitamin A supplementation** in children for different years. It is based on UNICEF data and provides an insightful spatial view of how different countries are progressing in public health initiatives.
+
+- The map uses **shapefiles** to represent country borders.
+- Countries are **color-coded** based on their Vitamin A coverage percentage.
+- The **dropdown menu** allows users to select a specific year, enabling year-over-year comparison.
+- The color scale ranges from **light orange (low coverage)** to **dark orange (high coverage)**, helping to visually distinguish between low- and high-coverage regions.
+
+### 🔍 Key Insights:
+
+> In **Sub-Saharan Africa**, vitamin A supplementation coverage has shown significant improvement over the past decade — particularly in countries like **Burkina Faso**, **Malawi**, and **Tanzania**, where coverage rates have consistently exceeded **90%** in recent years.
+
+> This increase has been linked to **enhanced public health campaigns**, **better healthcare infrastructure**, and **international support**.
+
+> As a result, **child mortality rates have declined**, since vitamin A plays a crucial role in **reducing the risk of infections** and **improving overall child health**.
+
+> Continued efforts are essential to ensure **universal coverage** and **further reduce child mortality** in vulnerable populations.
+
+
+---
+format:
+  html:
+    embed-resources: true
+    code-fold: true
 ---
 
-# 📈 Visualisation 1: World Map
+# 🌍 Global Vitamin A Coverage by Country
+
+This section visualizes the **Vitamin A coverage** by country using an interactive choropleth map. The map displays the percentage of Vitamin A supplementation coverage in children, providing an insightful look into global health disparities.
 
 ```{python}
-import pandas as pd 
-import geopandas as gpd
-from plotnine import *
-from shapely.geometry import Polygon, MultiPolygon
+import plotly.express as px
+import pandas as pd
+import plotly.io as pio
 
-# Load the UNICEF data
-data = pd.read_csv('data/unicef_merged.csv')
+# Set the renderer to 'notebook' to display the plot within the notebook
+pio.renderers.default = 'notebook'
 
-# Load the world dataset from the shapefile
-file_path = r"C:\Users\Acer\OneDrive\Desktop\tableau_assignment\Quarto Report\VSC_Assignment\ne_110m_admin_0_countries.shp"
-world = gpd.read_file(file_path)
+# Load the data
+data = pd.read_csv('data/unicef_indicator_1_cleaned.csv')
 
-# Merge data on ISO country codes (use 'SOV_A3' for the ISO 3-letter codes)
-merged_data = world.merge(
-    data.groupby('country_code').mean(numeric_only=True).reset_index(),
-    left_on='SOV_A3', right_on='country_code', how='left'
+# Filter out missing data
+data = data.dropna(subset=['obs_value'])
+
+# Create the choropleth map
+fig = px.choropleth(
+    data,
+    locations='alpha_3_code',  # Country code column
+    color='obs_value',  # The variable to visualize
+    hover_name='country',  # Display country name on hover
+    hover_data={'alpha_3_code': False},  # Remove country code from hover
+    color_continuous_scale='YlOrBr',  # Yellow-Orange-Brown color scale
+    labels={'obs_value': 'Vitamin A Coverage (%)'},
+    title="Global Vitamin A Coverage by Country"
 )
 
-# Drop rows with no 'coverage' data
-merged_data = merged_data.dropna(subset=['coverage'])
+# Beautify the layout
+fig.update_layout(
+    title=dict(
+        text="🌐 Global Vitamin A Coverage by Country",
+        font=dict(size=22, family='Arial Black'),
+        x=0.5  # Center title
+    ),
+    geo=dict(
+        showframe=False,
+        showcoastlines=True,
+        coastlinecolor="gray",
+        projection_type="equirectangular",  # Use a more suitable projection
+        showland=True,
+        landcolor="rgb(240, 240, 240)",  # Light land color
+        showocean=True,
+        oceancolor="rgb(220, 230, 250)",  # Light ocean color
+        bgcolor="white",
+        lakecolor="rgb(200, 220, 255)",  # Light lake color
+        showlakes=True,
+        showcountries=True,
+        countrycolor="gray"  # Lighter country borders
+    ),
+    margin=dict(l=20, r=20, t=70, b=20),
+    width=1100,  # Increased width
+    height=650,  # Increased height
+    coloraxis_colorbar=dict(
+        title=dict(
+            text='Coverage (%)',
+            font=dict(size=14, color='black')
+        ),
+        tickfont=dict(size=12, color='black'),
+        ticks='outside',
+        tickcolor='black',
+        lenmode='fraction',
+        len=0.75,
+        outlinecolor='black',
+        outlinewidth=1
+    ),
+    paper_bgcolor='white'
+)x
 
-# Explode MultiPolygons into Polygons (if any)
-merged_data = merged_data.explode(index_parts=False)
+# Show the map
+fig.show()
 
-# Convert GeoDataFrame to plottable DataFrame
-plot_rows = []
-for _, row in merged_data.iterrows():
-    geom = row.geometry
-    if isinstance(geom, Polygon):
-        x, y = geom.exterior.xy
-        for xi, yi in zip(x, y):
-            plot_rows.append({'long': xi, 'lat': yi, 'coverage': row['coverage'], 'group': row['SOV_A3']})
-    elif isinstance(geom, MultiPolygon):
-        for part in geom:
-            x, y = part.exterior.xy
-            for xi, yi in zip(x, y):
-                plot_rows.append({'long': xi, 'lat': yi, 'coverage': row['coverage'], 'group': row['SOV_A3']})
+---
+format:
+  html:
+    embed-resources: true
+    code-fold: true
+---
 
-# Create a DataFrame from the plot rows
-plot_df = pd.DataFrame(plot_rows)
+# Analysis of Adolescent Mortality Rate and GDP per Capita by Country
 
-# Define the plot
-coverage_plot = (
-    ggplot(plot_df)
-    + geom_polygon(aes(x='long', y='lat', group='group', fill='coverage'), color='white')
-    + coord_fixed()
-    + theme_minimal()
-    + labs(title='Vitamin A Supplementation Coverage', fill='Coverage (%)')
+## Graph: Adolescent Mortality Rate and GDP per Capita by Country
+
+Below is a dual-axis graph depicting the relationship between **Adolescent Mortality Rate** and **GDP per Capita** across different countries. The **Adolescent Mortality Rate** is shown as a bar chart on the left y-axis, and the **GDP per Capita** is displayed as a line graph on the right y-axis.
+
+## Insights
+
+### 1. **Correlation between Low GDP per Capita and High Adolescent Mortality**
+   - **Low GDP per capita** and **high inflation** often correlate with **increased adolescent mortality**. In countries with lower economic development, resources for healthcare and public services are more limited, leading to higher rates of adolescent death.
+   
+### 2. **Impact of Limited Healthcare Infrastructure**
+   - Low GDP per capita frequently leads to **limited public health spending**, which negatively affects the availability and quality of healthcare services. As a result, adolescent populations in these countries face inadequate **prevention**, **diagnosis**, and **treatment** for diseases, which increases their mortality rates.
+  
+---
+
+> **Note**: The graph and analysis presented above aim to help in understanding the broader global challenges concerning **adolescent mortality** and the underlying factors such as **economic conditions** and **public health infrastructure**.
+
+
+----
+format:
+  html:
+    embed-resources: true
+    code-fold: true
+---
+
+# 📚 Import libraries and Load Data  
+
+```{python}
+import pandas as pd
+import plotly.graph_objects as go
+import plotly.express as px
+
+# 📥 Load the data
+df = pd.read_csv('data/Sheet 2_data.csv')
+
+# 🧹 Clean the data
+df = df.dropna(subset=['Country', 'Adolescent Mortality Rate', 'Gdp Per Capita'])  # Remove rows without required columns
+
+# 📊 Sort by Adolescent Mortality Rate descending (from high to low)
+df = df.sort_values(by='Adolescent Mortality Rate', ascending=False)
+
+# 🎨 Create a color scale for the bars based on mortality rate (green to red)
+colors = px.colors.sample_colorscale(
+    'RdYlGn_r',
+    (df['Adolescent Mortality Rate'] - df['Adolescent Mortality Rate'].min()) /
+    (df['Adolescent Mortality Rate'].max() - df['Adolescent Mortality Rate'].min())
 )
 
-# Print the plot to render in Quarto
-print(coverage_plot)
+# 📈 Create the figure
+fig = go.Figure()
 
-# Save the plot to a file
-#coverage_plot.save('vitamin_coverage_map.png', dpi=300)
+# 1️⃣ Bar trace for Adolescent Mortality Rate (sorted from high to low)
+fig.add_trace(
+    go.Bar(
+        x=df['Country'],
+        y=df['Adolescent Mortality Rate'],
+        name='Adolescent Mortality Rate',
+        marker_color=colors,
+        yaxis='y1'  # Link the bar plot to the primary y-axis
+    )
+)
+
+# 2️⃣ Line trace for GDP per Capita (sorted from low to high)
+fig.add_trace(
+    go.Scatter(
+        x=df['Country'],
+        y=df['Gdp Per Capita'],
+        name='GDP per Capita',
+        mode='lines',  # Line graph with markers
+        line=dict(color='crimson', width=2),  # Color and width of the line
+        yaxis='y2'  # Link the line plot to the secondary y-axis
+    )
+)
+
+# 🛠️ Layout settings
+fig.update_layout(
+    title='Adolescent Mortality Rate and GDP per Capita by Country',
+    width=1400,
+    height=700,
+    xaxis=dict(
+        title='Country',
+        tickangle=-45,
+        tickfont_size=10
+    ),
+    yaxis=dict(
+        title='Adolescent Mortality Rate',
+        tickfont_size=12
+    ),
+    yaxis2=dict(
+        title='GDP per Capita',
+        tickfont_size=12,
+        overlaying='y',  # Share the same x-axis
+        side='right'  # Place the secondary y-axis on the right
+    ),
+    margin=dict(l=50, r=50, t=80, b=150),
+    plot_bgcolor='white'
+)
+
+# 📢 Display the plot inline (for Jupyter environments)
+fig.show()
+
+fig.write_html("adolescent_mortality_gdp_plot.html")
 
 
+---
+format:
+  html:
+    embed-resources: true
+    code-fold: true
+---
+
+## 📉 Vitamin A Coverage vs GDP per Capita – Scatterplot with Regression Line
+
+This scatterplot visualizes the relationship between **Vitamin A supplementation coverage** and **GDP per capita** across countries. Each point on the graph represents a single country for a given year (typically the most recent common year across datasets).
+
+- The **x-axis** shows GDP per capita (in constant 2015 US$).
+- The **y-axis** shows the Vitamin A supplementation coverage percentage.
+- A **linear regression line** has been added to show the general trend.
+
+### 🔍 Key Insights:
+
+- Countries with **higher GDP per capita** tend to have **higher Vitamin A coverage**, indicating a **positive correlation** between economic prosperity and public health intervention coverage.
+- The spread of points also reveals **inequities across countries**, with low-income nations often showing lower coverage rates.
+
+### 📌 Additional Context:
+
+> In low-income countries, adolescent boys often have higher mortality rates compared to girls.  
+> This is partly due to riskier behaviors such as **substance abuse, violence, and accidents**, which are more prevalent among males in this age group.
+
+> **Low GDP per capita** often correlates with **limited public health spending**, which affects the **availability and quality of healthcare services**. This can lead to **higher adolescent mortality rates** due to inadequate prevention, diagnosis, and treatment of diseases.
+
+> With a GDP per capita ranging from around **$300 to $580** over the years, **Afghanistan** likely faces **high adolescent mortality rates** due to **ongoing conflict, limited healthcare infrastructure**, and **high rates of infectious diseases**.
+
+> Although not a low-income country, **Albania**’s GDP per capita has been increasing, which may contribute to **better health outcomes** for adolescents compared to lower-income countries.
+
+> Many countries in this region have **low GDP per capita and high adolescent mortality rates**, emphasizing the critical link between **economic development and adolescent health**.
+
+
+---
+format:
+  html:
+    embed-resources: true
+    code-fold: true
+---
+
+## 📉 Adolescent Mortality Rate vs GDP per Capita
+
+This scatterplot visualizes the relationship between **Adolescent Mortality Rate** and **GDP per Capita** across countries. Each point represents a single country for a given year, showing the **GDP per Capita** on the x-axis and the **Adolescent Mortality Rate** on the y-axis. A **linear regression line** has been added to indicate the trend.
+
+The **x-axis** is in a **logarithmic scale** for better visualization, and **mean** and **median lines** are included to provide additional insights into the data distribution.
+
+```{python}
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+
+# Load the data
+df = pd.read_csv('data/Sheet 4_data.csv')
+
+# Filter missing values
+df_filtered = df.dropna(subset=['Gdp Per Capita', 'Adolescent Mortality Rate'])
+
+# Create base scatterplot
+fig = px.scatter(
+    df_filtered,
+    x='Gdp Per Capita',
+    y='Adolescent Mortality Rate',
+    title='Adolescent Mortality Rate vs GDP per Capita',
+    labels={
+        'Gdp Per Capita': 'GDP per Capita (USD)',
+        'Adolescent Mortality Rate': 'Adolescent Mortality Rate (%)'
+    },
+    trendline="ols",
+    hover_name='Country',
+    color='Country',
+    opacity=0.7
+)
+
+# Calculate mean and median
+mean_val = df_filtered['Adolescent Mortality Rate'].mean()
+median_val = df_filtered['Adolescent Mortality Rate'].median()
+
+# Add mean and median lines
+fig.add_hline(
+    y=mean_val,
+    line_dash='solid',
+    line_color='lightblue',
+    annotation_text='Mean',
+    annotation_position='top left'
+)
+fig.add_hline(
+    y=median_val,
+    line_dash='solid',
+    line_color='lightgreen',
+    annotation_text='Median',
+    annotation_position='bottom left'
+)
+
+# Beautify layout
+fig.update_layout(
+    template='plotly_white',
+    xaxis_title_font=dict(size=14, family='Arial'),
+    yaxis_title_font=dict(size=14, family='Arial'),
+    title_font=dict(size=18, family='Arial'),
+    hoverlabel=dict(
+        bgcolor="white",
+        font_size=11,
+        font_family="Arial"
+    )
+)
+
+# Optional: log scale for GDP
+fig.update_xaxes(type='log')
+
+# Customize markers
+fig.update_traces(marker=dict(size=8, line=dict(width=1, color='DarkSlateGrey')))
+
+fig.show()
+
+
+## 🌍 Global Vitamin A Supplementation Coverage Over Time
+
+This line graph visualizes the average global vitamin A supplementation coverage from 2000 to 2023. The data is sourced from UNICEF and represents the percentage of children receiving vitamin A supplements across different countries. The coverage is calculated as a global average for each year.
+
+**Key Trends:**
+
+- **Initial Increase:** Coverage generally increased between 2000 and the late 2000s.
+- **Peak Coverage:** The highest average coverage was observed around 2010-2014, reaching above 70%.
+- **Subsequent Decline:** After 2015, there appears to be a decline in global average coverage.
+- **Recent Fluctuations:** The coverage shows some fluctuations in the most recent years, with a notable dip around 2020 and a partial recovery afterward.
+
+**Possible Interpretations:**
+
+The trends might reflect varying levels of investment, changes in health policies, disruptions due to global events (such as the COVID-19 pandemic affecting supply chains and access to healthcare), or shifts in data collection methodologies. A more in-depth analysis would be required to determine the exact causes behind these trends.
+
+import plotly.express as px
+import pandas as pd
+import plotly.io as pio
+
+# Set the renderer to 'notebook'
+pio.renderers.default = 'notebook'
+
+def create_and_show_plot():
+    # Load the data
+    data = pd.read_csv('data/unicef_indicator_1_cleaned.csv')
+
+    # Data preprocessing
+    data = data.rename(columns={'time_period': 'year', 'obs_value': 'coverage'})
+    data['year'] = pd.to_numeric(data['year'], errors='coerce')
+    data['coverage'] = pd.to_numeric(data['coverage'], errors='coerce')
+    data = data.dropna(subset=['year', 'coverage'])
+
+    # Group data by year
+    time_series = data.groupby('year')['coverage'].mean().reset_index()
+
+    # Create the line plot
+    fig = px.line(
+        time_series,
+        x='year',
+        y='coverage',
+        title='🌍 Global Vitamin A Supplementation Coverage (Avg %)',
+        labels={'year': 'Year', 'coverage': 'Average Coverage (%)'},
+        markers=True
+    )
+
+    # Customize the plot
+    fig.update_traces(
+        line=dict(width=4, color='green'),
+        marker=dict(size=8, color='seagreen', line=dict(width=0.5, color='white'))
+    )
+
+    fig.update_layout(
+        template='plotly_white',
+        font=dict(size=16),
+        title_font_size=24,
+        title_x=0.5,
+        hovermode='x unified',
+        xaxis=dict(showgrid=False),
+        yaxis=dict(title='Coverage (%)'),
+        margin=dict(t=80, l=40, r=40, b=40)
+    )
+
+    # Display the plot
+    fig.show()
+
+# Call the function to render the plot
+create_and_show_plot()
